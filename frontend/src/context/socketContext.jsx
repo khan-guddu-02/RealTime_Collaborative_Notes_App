@@ -9,7 +9,7 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io("http://localhost:5000"); // backend URL
+    const newSocket = io("https://realtime-collaborative-notes-app-2.onrender.com"); // backend URL
     setSocket(newSocket);
 
     return () => newSocket.disconnect();
