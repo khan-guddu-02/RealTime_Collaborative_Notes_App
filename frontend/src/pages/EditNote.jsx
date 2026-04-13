@@ -1,7 +1,9 @@
+
 import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getNoteById, updateNote } from "../api/notesApi.js";
 import { addCollaborator } from "../api/collaborationApi.js";
+import { getUsers } from "../api/userApi.js";
 import Editor from "../components/Editor.jsx";
 import { AuthContext } from "../context/AuthContext";
 
@@ -11,6 +13,7 @@ export default function NoteEditor() {
   const { user } = useContext(AuthContext);
 
   const [note, setNote] = useState(null);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [collabUserId, setCollabUserId] = useState("");
@@ -18,7 +21,7 @@ export default function NoteEditor() {
 
   const userRole = user?.role;
 
-  //  FETCH NOTE
+  //  FETCH NOTE 
   useEffect(() => {
     const fetchNote = async () => {
       try {
@@ -32,7 +35,21 @@ export default function NoteEditor() {
     fetchNote();
   }, [id]);
 
-  //  UPDATE NOTE
+  //  FETCH USERS 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await getUsers();
+        setUsers(res.data.users);
+      } catch (err) {
+        console.error("User fetch failed");
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  //  UPDATE NOTE 
   const handleUpdate = async () => {
     if (!note.title || !note.content) {
       return alert("Title and content required");
@@ -55,9 +72,9 @@ export default function NoteEditor() {
     }
   };
 
-  // ADD COLLABORATOR
+  //  ADD COLLAB 
   const handleAddCollab = async () => {
-    if (!collabUserId) return alert("User ID required");
+    if (!collabUserId) return alert("Select a user");
 
     try {
       await addCollaborator({
@@ -76,54 +93,66 @@ export default function NoteEditor() {
   if (!note) return <p className="text-center mt-4">Loading...</p>;
 
   const isViewer = userRole === "VIEWER";
+  const canManageCollab =
+    userRole === "ADMIN" || Number(note.owner_id) === Number(user?.id);
 
   return (
     <div className="container mt-4 col-md-8">
-      <h3>Edit Note</h3>
+      {/* MAIN CARD */}
+      <div className="card shadow p-4">
+        <h4 className="mb-3">
+          {" "}
+          <span className="me-2">📝</span> Edit Note
+        </h4>
 
-      {/* TITLE */}
-      <input
-        className="form-control mb-3"
-        value={note.title}
-        onChange={(e) =>
-          setNote({ ...note, title: e.target.value })
-        }
-        disabled={isViewer}
-      />
+        {/* TITLE */}
+        <input
+          className="form-control mb-3"
+          placeholder="Enter title"
+          value={note.title}
+          onChange={(e) => setNote({ ...note, title: e.target.value })}
+          disabled={isViewer}
+        />
 
-      {/* EDITOR */}
-      <Editor
-        value={note.content}
-        noteId={id}
-        onChange={(val) =>
-          setNote({ ...note, content: val })
-        }
-      />
+        {/* EDITOR */}
+        <Editor
+          value={note.content}
+          noteId={id}
+          onChange={(val) => setNote({ ...note, content: val })}
+        />
 
-      {/* SAVE BUTTON */}
-      {!isViewer && (
-        <button
-          className="btn btn-primary mt-3 w-100"
-          onClick={handleUpdate}
-          disabled={loading}
-        >
-          {loading ? "Saving..." : "Save Changes"}
-        </button>
-      )}
+        {/* SAVE BUTTON */}
+        {!isViewer && (
+          <button
+            className="btn btn-primary mt-3 w-100"
+            onClick={handleUpdate}
+            disabled={loading}
+          >
+            {loading ? "Saving..." : " Save Changes"}
+          </button>
+        )}
+      </div>
 
-      {/* COLLABORATION */}
-      {(userRole === "ADMIN" ||
-        Number(note.owner_id) === Number(user?.id)) && (
-        <div className="mt-4">
-          <h5>Add Collaborator</h5>
+      {/*  COLLAB SECTION  */}
+      {canManageCollab && (
+        <div className="card mt-4 p-3 shadow-sm">
+          <h5>👥 Add Collaborator</h5>
 
-          <input
+          {/* USER DROPDOWN */}
+          <select
             className="form-control mb-2"
-            placeholder="User ID"
             value={collabUserId}
             onChange={(e) => setCollabUserId(e.target.value)}
-          />
+          >
+            <option value="">Select User</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.role})
+              </option>
+            ))}
+          </select>
 
+          {/* ROLE */}
           <select
             className="form-control mb-2"
             value={role}
@@ -133,10 +162,8 @@ export default function NoteEditor() {
             <option value="VIEWER">Viewer</option>
           </select>
 
-          <button
-            className="btn btn-secondary w-100"
-            onClick={handleAddCollab}
-          >
+          {/* ADD BUTTON */}
+          <button className="btn btn-secondary w-100" onClick={handleAddCollab}>
             Add Collaborator
           </button>
         </div>

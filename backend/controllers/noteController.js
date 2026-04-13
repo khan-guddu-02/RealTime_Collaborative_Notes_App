@@ -9,7 +9,7 @@ import {
   getNoteById,
   searchNotesForUser,
   createShareLink,
-  getNoteByShareToken
+  getNoteByShareToken,
 } from "../models/noteModel.js";
 
 import { findCollaborator } from "../models/collaborationModel.js";
@@ -17,7 +17,6 @@ import { createLog } from "../models/activityLogModel.js";
 import { ROLES, ACTIONS } from "../utils/constants.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/apiError.js";
-
 
 const checkAccess = async (noteId, user) => {
   const [notes] = await getNoteById(noteId);
@@ -67,19 +66,19 @@ export const create = asyncHandler(async (req, res) => {
   });
 });
 
-// GET ALL NOTES 
- 
+// GET ALL NOTES
+
 export const getAll = asyncHandler(async (req, res) => {
   const role = req.user.role.toUpperCase();
 
   let notes;
 
   if (role === ROLES.ADMIN) {
-    // admin -> all notes
+    // admin => all notes
     const [rows] = await getAllNotesAdmin();
     notes = rows;
   } else {
-    //editor / viewer -> own + shared
+    //editor / viewer => own + shared
     const [rows] = await getAllNotesForUser(req.user.id);
     notes = rows;
   }
@@ -88,7 +87,7 @@ export const getAll = asyncHandler(async (req, res) => {
 });
 
 // GET SINGLE NOTE
- 
+
 export const getSingleNote = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -100,7 +99,7 @@ export const getSingleNote = asyncHandler(async (req, res) => {
 });
 
 // UPDATE NOTE
- 
+
 export const update = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
@@ -118,11 +117,7 @@ export const update = asyncHandler(async (req, res) => {
   const [notes] = await getNoteById(id);
   const note = notes[0];
 
-  await updateNote(
-    id,
-    title || note.title,
-    content || note.content
-  );
+  await updateNote(id, title || note.title, content || note.content);
 
   await createLog(req.user.id, id, ACTIONS.UPDATE);
 
@@ -130,7 +125,7 @@ export const update = asyncHandler(async (req, res) => {
 });
 
 // DELETE NOTE
- 
+
 export const remove = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -146,10 +141,7 @@ export const remove = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Only admin can delete");
   }
 
-  await db.promise().query(
-    "DELETE FROM activity_logs WHERE note_id = ?",
-    [id]
-  );
+  await db.promise().query("DELETE FROM activity_logs WHERE note_id = ?", [id]);
 
   await deleteNote(id);
 
@@ -157,7 +149,7 @@ export const remove = asyncHandler(async (req, res) => {
 });
 
 // SEARCH NOTES
- 
+
 export const search = asyncHandler(async (req, res) => {
   const { q } = req.query;
 
@@ -180,20 +172,31 @@ export const generateShare = asyncHandler(async (req, res) => {
   if (role === ROLES.VIEWER) {
     return res.status(403).json({ message: "No permission to share" });
   }
+  const [existing] = await db.promise().query(
+    "SELECT token FROM share_links WHERE note_id = ?",
+    [id]
+  );
 
-  const token = crypto.randomBytes(32).toString("hex");
+  let token;
 
-  await createShareLink(id, token);
+  if (existing.length > 0) {
+    token = existing[0].token; 
+  } else {
+    token = crypto.randomBytes(32).toString("hex");
+    await createShareLink(id, token);
+  }
 
   await createLog(req.user.id, id, ACTIONS.SHARE);
 
+  const FRONTEND_URL = "http://localhost:5173";
+
   return res.json({
-    link: `http://localhost:5000/api/notes/public/${token}`,
+    link: `${FRONTEND_URL}/share/${token}`,
   });
 });
 
 // PUBLIC NOTE
- 
+
 export const getPublicNote = asyncHandler(async (req, res) => {
   const { token } = req.params;
 

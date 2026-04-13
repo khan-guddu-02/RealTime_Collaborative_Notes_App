@@ -6,6 +6,7 @@ import CreateNote from "../pages/CreateNote";
 import SharedNote from "../pages/SharedNote";
 import NoteEditor from "../pages/EditNote";
 import PrivateRoute from "../components/PrivateRoute";
+import ActivityLogs from "../pages/ActivityLogs";
 
 export default function AppRoutes() {
   return (
@@ -36,12 +37,20 @@ export default function AppRoutes() {
         }
       />
 
-
       <Route
         path="/note/:id"
         element={
           <PrivateRoute>
             <NoteEditor />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/logs/:noteId"
+        element={
+          <PrivateRoute>
+            <ActivityLogs />
           </PrivateRoute>
         }
       />

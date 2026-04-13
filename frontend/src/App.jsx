@@ -10,8 +10,9 @@ export default function App() {
       <SocketProvider>
         <Navbar />
         <AppRoutes />
-        
       </SocketProvider>
     </AuthProvider>
+
+  
   );
 }

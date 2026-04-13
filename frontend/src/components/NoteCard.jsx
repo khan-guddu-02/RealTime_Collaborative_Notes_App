@@ -1,24 +1,53 @@
 import { Link } from "react-router-dom";
 import { generateShareLink } from "../api/notesApi.js";
+import { useNavigate } from "react-router-dom";
 
 export default function NoteCard({ note = {}, onDelete, user }) {
-  console.log("NOTE DATA:", note);
+
+
 
   const userRole = user?.role?.toUpperCase?.() || "";
 
   const isAdmin = userRole === "ADMIN";
   const isOwner = Number(note?.owner_id) === Number(user?.id);
 
-  //  SAFE ROLE (fallback)
-  const noteRole = note?.role?.toUpperCase?.() || "";
+  const noteRole = note?.accessRole?.toUpperCase?.() || "";
 
   const isCollaboratorEditor = noteRole === "EDITOR";
-  const isViewer = noteRole === "VIEWER";
 
-  //  RBAC
+  // RBAC
   const canEdit = isAdmin || isOwner || isCollaboratorEditor;
   const canDelete = isAdmin;
   const canShare = isAdmin || isOwner;
+
+
+  const navigate = useNavigate();
+
+  const handleView = async()=>{
+    try {
+          let token = note?.share_token;
+
+          if(!token){
+            const res = await generateShareLink(note.id);
+            const link = res.data?.link;
+            if (!link) {
+              alert("Failed to receive link");
+            }
+
+            token=link.split("/").pop();
+          }
+
+          navigate(`/share/${token}`)
+    } catch (error) {
+      alert("Failed to open note")
+    }
+  }
+
+  //  Format Date
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleString();
+  };
 
   //  SHARE HANDLER
   const handleShare = async () => {
@@ -42,26 +71,27 @@ export default function NoteCard({ note = {}, onDelete, user }) {
     <div className="card mb-3 shadow-sm">
       <div className="card-body">
         <h5>{note?.title || "No Title"}</h5>
-
         <p>
-          {note?.content
-            ? note.content.slice(0, 80) + "..."
-            : "No content"}
+          {note?.content ? note.content.slice(0, 80) + "..." : "No content"}
         </p>
+        <p className="text-muted mb-1">
+          Created by: <b>{note?.username || "Unknown"}</b> (
+          {note?.ownerRole || "N/A"})
+        </p>
+        <small className="text-muted d-block">
+          Created: {formatDate(note?.created_at)}
+        </small>
+        <small className="text-muted d-block mb-2">
+          Updated: {formatDate(note?.updated_at)}
+        </small>
 
         <div className="d-flex flex-wrap gap-2">
-          
-          {/* EDIT */}
           {canEdit && (
-            <Link
-              to={`/note/${note?.id}`}
-              className="btn btn-warning btn-sm"
-            >
+            <Link to={`/note/${note?.id}`} className="btn btn-warning btn-sm">
               Edit
             </Link>
           )}
 
-          {/* DELETE */}
           {canDelete && (
             <button
               className="btn btn-danger btn-sm"
@@ -71,12 +101,17 @@ export default function NoteCard({ note = {}, onDelete, user }) {
             </button>
           )}
 
-          {/* SHARE */}
+          
+           <button className="btn btn-primary btn-sm" onClick={handleView}>
+            view
+           </button>
+
+          <Link to={`/logs/${note.id}`} className="btn btn-secondary btn-sm">
+            Logs
+          </Link>
+
           {canShare && (
-            <button
-              className="btn btn-info btn-sm"
-              onClick={handleShare}
-            >
+            <button className="btn btn-info btn-sm" onClick={handleShare}>
               Share
             </button>
           )}

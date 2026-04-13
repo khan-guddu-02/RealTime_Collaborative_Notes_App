@@ -5,37 +5,43 @@ import { getNoteById } from "../models/noteModel.js";
 import { findCollaborator } from "../models/collaborationModel.js";
 import { ROLES } from "../utils/constants.js";
 
-
+// ACCESS CHECK
 const checkAccess = async (noteId, user) => {
+
+  //  SAFE USER CHECK
+  if (!user) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
   const [notes] = await getNoteById(noteId);
 
-  if (notes.length === 0) {
+  if (!notes || notes.length === 0) {
     throw new ApiError(404, "Note not found");
   }
 
   const note = notes[0];
 
-  // ADMIN override
-  if (user.role === ROLES.ADMIN) {
-    return true;
-  }
+  // ADMIN
+  if (user.role === ROLES.ADMIN) return true;
 
   // OWNER
-  if (note.owner_id === user.id) {
-    return true;
+  if (Number(note.owner_id) === Number(user.id)) return true;
+
+  // COLLABORATOR (SAFE)
+  let collab = [];
+  try {
+    const result = await findCollaborator(noteId, user.id);
+    collab = result?.[0] || [];
+  } catch (err) {
+    console.log("Collaborator check error:", err);
   }
 
-  
-  const [collab] = await findCollaborator(noteId, user.id);
-
-  if (collab.length > 0) {
-    return true;
-  }
+  if (collab.length > 0) return true;
 
   throw new ApiError(403, "Not authorized to view logs");
 };
 
-
+// GET LOGS
 export const getLogs = asyncHandler(async (req, res) => {
   const { noteId } = req.params;
 
@@ -43,9 +49,16 @@ export const getLogs = asyncHandler(async (req, res) => {
 
   const [logs] = await getLogsByNote(noteId);
 
+  const formattedLogs = (logs || []).map(log => ({
+    action: log.action,
+    username: log.username,
+    role: log.role,
+    time: log.created_at
+  }));
+
   res.status(200).json({
     success: true,
-    count: logs.length,
-    logs,
+    count: formattedLogs.length,
+    logs: formattedLogs
   });
 });

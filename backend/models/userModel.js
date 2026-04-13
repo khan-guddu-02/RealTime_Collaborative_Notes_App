@@ -28,7 +28,7 @@ export const findUserById = (id) => {
   );
 };
 
-//Check if email already exists (IMPORTANT)
+//Check if email already exists 
 
 export const checkEmailExists = (email) => {
   return db.promise().query(

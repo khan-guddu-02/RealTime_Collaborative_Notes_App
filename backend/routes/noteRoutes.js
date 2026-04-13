@@ -33,6 +33,6 @@ router.delete("/:id", remove);   // Delete note (admin only)
 
 // SHARE NOTE
  
-router.post("/:id/share",verifyToken, generateShare);
+router.post("/:id/share", generateShare);
 
 export default router;
