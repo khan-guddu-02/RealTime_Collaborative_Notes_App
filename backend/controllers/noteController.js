@@ -167,11 +167,14 @@ export const search = asyncHandler(async (req, res) => {
 export const generateShare = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // Access check
   const role = await checkAccess(id, req.user);
 
   if (role === ROLES.VIEWER) {
     return res.status(403).json({ message: "No permission to share" });
   }
+
+  //  Check existing token
   const [existing] = await db.promise().query(
     "SELECT token FROM share_links WHERE note_id = ?",
     [id]
@@ -186,11 +189,15 @@ export const generateShare = asyncHandler(async (req, res) => {
     await createShareLink(id, token);
   }
 
+  //  Activity log
   await createLog(req.user.id, id, ACTIONS.SHARE);
 
-  const FRONTEND_URL = "http://localhost:5173";
+  //  ENV BASE URL 
+  const FRONTEND_URL =
+    process.env.FRONTEND_URL || "http://localhost:5173";
 
-  return res.json({
+  return res.status(200).json({
+    success: true,
     link: `${FRONTEND_URL}/share/${token}`,
   });
 });
