@@ -19,9 +19,9 @@ export default function NoteEditor() {
   const [collabUserId, setCollabUserId] = useState("");
   const [role, setRole] = useState("EDITOR");
 
-  const userRole = user?.role;
+  const userRole = user?.role?.toUpperCase() || "";
 
-  //  FETCH NOTE 
+  // FETCH NOTE
   useEffect(() => {
     const fetchNote = async () => {
       try {
@@ -35,8 +35,19 @@ export default function NoteEditor() {
     fetchNote();
   }, [id]);
 
-  //  FETCH USERS 
+  //  PERMISSIONS 
+  const isViewer = userRole === "VIEWER";
+  const isAdmin = userRole === "ADMIN";
+  const isOwner = Number(note?.owner_id) === Number(user?.id);
+
+//admin can collab
+  const canManageCollab =
+  isAdmin || (isOwner && userRole !== "EDITOR");
+
+  //FETCH USERS (ONLY IF NEEDED) 
   useEffect(() => {
+    if (!canManageCollab) return; 
+
     const fetchUsers = async () => {
       try {
         const res = await getUsers();
@@ -47,9 +58,9 @@ export default function NoteEditor() {
     };
 
     fetchUsers();
-  }, []);
+  }, [canManageCollab]);
 
-  //  UPDATE NOTE 
+  //UPDATE NOTE 
   const handleUpdate = async () => {
     if (!note.title || !note.content) {
       return alert("Title and content required");
@@ -72,9 +83,13 @@ export default function NoteEditor() {
     }
   };
 
-  //  ADD COLLAB 
+  // ADD COLLAB
   const handleAddCollab = async () => {
     if (!collabUserId) return alert("Select a user");
+
+    if (Number(collabUserId) === Number(user?.id)) {
+      return alert("You are already the owner");
+    }
 
     try {
       await addCollaborator({
@@ -92,16 +107,11 @@ export default function NoteEditor() {
 
   if (!note) return <p className="text-center mt-4">Loading...</p>;
 
-  const isViewer = userRole === "VIEWER";
-  const canManageCollab =
-    userRole === "ADMIN" || Number(note.owner_id) === Number(user?.id);
-
   return (
     <div className="container mt-4 col-md-8">
-      {/* MAIN CARD */}
+      
       <div className="card shadow p-4">
         <h4 className="mb-3">
-          {" "}
           <span className="me-2">📝</span> Edit Note
         </h4>
 
@@ -110,7 +120,9 @@ export default function NoteEditor() {
           className="form-control mb-3"
           placeholder="Enter title"
           value={note.title}
-          onChange={(e) => setNote({ ...note, title: e.target.value })}
+          onChange={(e) =>
+            setNote({ ...note, title: e.target.value })
+          }
           disabled={isViewer}
         />
 
@@ -118,7 +130,9 @@ export default function NoteEditor() {
         <Editor
           value={note.content}
           noteId={id}
-          onChange={(val) => setNote({ ...note, content: val })}
+          onChange={(val) =>
+            setNote({ ...note, content: val })
+          }
         />
 
         {/* SAVE BUTTON */}
@@ -128,7 +142,7 @@ export default function NoteEditor() {
             onClick={handleUpdate}
             disabled={loading}
           >
-            {loading ? "Saving..." : " Save Changes"}
+            {loading ? "Saving..." : "Save Changes"}
           </button>
         )}
       </div>
@@ -145,11 +159,15 @@ export default function NoteEditor() {
             onChange={(e) => setCollabUserId(e.target.value)}
           >
             <option value="">Select User</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.role})
-              </option>
-            ))}
+
+            {users
+              // remove owner from list
+              .filter((u) => u.id !== note.owner_id)
+              .map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
           </select>
 
           {/* ROLE */}
@@ -163,7 +181,10 @@ export default function NoteEditor() {
           </select>
 
           {/* ADD BUTTON */}
-          <button className="btn btn-secondary w-100" onClick={handleAddCollab}>
+          <button
+            className="btn btn-secondary w-100"
+            onClick={handleAddCollab}
+          >
             Add Collaborator
           </button>
         </div>
